@@ -1,0 +1,14 @@
+[tool.poetry]
+name = "datamaker"
+version = "0.1.0"
+description = ""
+authors = ["David Brooks <d.brooks@auckland.ac.nz>"]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+pandas = "*"
+openpyxl = "^3.0.9"
+pygit2 = "^1.7.1"
+
+[tool.poetry.scripts]
+mapdatamaker = 'datamaker.__main__:main'
