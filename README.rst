@@ -1,6 +1,11 @@
+Installation::
+
+    $ pip install https://github.com/dbrnz/flatmap-datamaker/releases/download/0.1.0/datamaker-0.1.0-py3-none-any.whl
+
+
 Usage::
 
-    $ python datamaker --help
+    $ mapdatamaker --help
 
     usage: mapdatamaker [-h] WORKSPACE COMMIT MANIFEST DATASET
 
@@ -18,7 +23,7 @@ Usage::
 
 Example::
 
-    $ python datamaker \
+    $ mapdatamaker \
              https://models.physiomeproject.org/workspace/62f \
              1018a30afc1a675fcc6aa504204a0652ca059dff \
              manifest.json \
