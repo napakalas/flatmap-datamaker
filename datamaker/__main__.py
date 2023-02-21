@@ -58,7 +58,7 @@ def main():
     parser.add_argument('workspace', metavar='WORKSPACE', help='URL of a PMR workspace containing a flatmap manifest')
     parser.add_argument('commit', metavar='COMMIT', help='SHA of workspace commit to use for dataset')
     parser.add_argument('manifest', metavar='MANIFEST', help='name of flatmap manifest in workspace')
-    parser.add_argument('dataset', metavar='DATASET', help='full mame for resulting dataset')
+    parser.add_argument('dataset', metavar='DATASET', help='full name for resulting dataset')
 
     try:
         args = parser.parse_args()
