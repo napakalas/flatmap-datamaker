@@ -9,6 +9,9 @@ python = "^3.8"
 pandas = "*"
 openpyxl = "^3.0.9"
 pygit2 = "^1.7.1"
+gitpython = "^3.1.29"
+giturlparse = "^0.10.0"
+requests = "^2.27.0"
 
 [tool.poetry.scripts]
 mapdatamaker = 'datamaker.__main__:main'
