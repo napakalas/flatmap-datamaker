@@ -27,6 +27,10 @@ import mimetypes
 
 import pandas
 
+import openpyxl
+import requests
+from io import BytesIO
+
 #===============================================================================
 
 class SourceError(Exception):
@@ -55,72 +59,59 @@ ADDTIONAL_LINKS = [
 
 #===============================================================================
 
-class DatasetDescription:
-    COLUMNS = (
-        'Metadata element',
-        'Description',
-        'Example',
-        'Value',
-    )
-    ROW_ELEMENTS = (
-        'Name',
-        'Description',
-        'Keywords',
-        'Contributors',
-        'Contributor ORCID ID',
-        'Contributor Affiliation',
-        'Contributor Role',
-        'Is Contact Person',
-        'Acknowledgements',
-        'Funding',
-        'Originating Article DOI',
-        'Protocol URL or DOI',
-        'Additional Links',
-        'Link Description',
-        'Number of subjects',
-        'Number of samples',
-        'Completeness of data set',
-        'Parent dataset ID',
-        'Title for complete data set',
-        'Metadata Version DO NOT CHANGE',
-    )
+TEMPLATE_LINK = 'https://github.com/SciCrunch/sparc-curation/blob/master/resources/DatasetTemplate/dataset_description.xlsx?raw=true'
 
-    def __init__(self, workspace, description):
+#===============================================================================
+
+from datamaker.manifest import Manifest, pathlib_path
+
+#===============================================================================
+
+class DatasetDescription:
+    def __init__(self, workspace, description, uuid, is_latest=True, version=None):
+        self.__workbook = self.__load_template_workbook(is_latest=is_latest, version=version)
+        
         self.__source_dir = workspace.path
         with open(self.__source_dir.joinpath(description)) as fd:
             description = json.loads(fd.read())
-        values = defaultdict(list)
-        values['Metadata Version DO NOT CHANGE'] = METADATA_VERSION
-        values['Name'] = description['title']
-        values['Title for complete data set'] = description['title']
-        values['Description'] = description['description']
-        values['Keywords'] = [ kw for kw in description.get('keywords', []) ]
-        for contributor in description['contributors']:
-            values['Contributors'].append(contributor['name'])
-            values['Contributor ORCID ID'].append(contributor.get('orcid'))
-            values['Contributor Affiliation'].append(contributor['affiliation'])
-            values['Contributor Role'].append(contributor['role'])
-            values['Is Contact Person'].append(contributor.get('contact', 'Yes'))
-        values['Funding'] = description.get('funding')
-        for link in ADDTIONAL_LINKS:
-            values['Additional Links'].append(link['url'])
-            values['Link Description'].append(link['description'])
-        values['Number of subjects'] = 0
-        values['Number of samples'] = 0
-        self.__rows = []
-        value_size = 1
-        for element in self.ROW_ELEMENTS:
-            value = values.get(element)
-            if not isinstance(value, list):
-                value = [ value ]
-            if len(value) > value_size:
-                value_size = len(value)
-            self.__rows.append([ element, '', '' ] + value)
-        self.__columns = self.COLUMNS + tuple(f'Value {n+2}' for n in range(value_size-1))
+        
+        self.__write_cell('type', 'simulation')
+        self.__write_cell('title', description['title'])
+        self.__write_cell('keywords', description['keywords'])
+        self.__write_cell('contributor name', [c['name'] if 'name' in c else '' for c in description['contributors']])
+        self.__write_cell('contributor orcid', [c['orcid'] if 'orcid' in c else '' for c in description['contributors']])
+        self.__write_cell('contributor affiliation', [c['affiliation'] if 'affiliation' in c else '' for c in description['contributors']])
+        self.__write_cell('contributor role', [c['role'] if 'role' in c else '' for c in description['contributors']])
+        if uuid != None:
+            self.__write_cell('identifier', str(uuid))
+        self.__write_cell('identifier type', 'uuid')
+        self.__write_cell('funding', description['funding'])
+        self.__write_cell('identifier description', ['', ''])
+        self.__write_cell('relation type', ['', ''])
+        
+    def __load_template_workbook(self, is_latest=True, version=None):
+        """
+        : is_latest: the default is True, if None, should specify the version
+        : version: the default is None for the latest version
+        """
+        headers = {'Content-Type': 'application/xlsx'}
+        template = requests.request('GET', TEMPLATE_LINK, headers=headers)
+        workbook = openpyxl.load_workbook(BytesIO(template.content))
+        return workbook
+        
+    def __write_cell(self, key, values):
+        worksheet = self.__workbook.worksheets[0]
+        data_pos = 3
+        if not isinstance(values, list):
+            values = [values]
+        for row in worksheet.rows:
+            if row[0].value.lower().strip() == key:
+                for pos in range(len(values)):
+                    row[pos+data_pos].value = str(values[pos])
 
     def write(self):
         sds_description = (self.__source_dir / 'dataset_description.xlsx').resolve()
-        pandas.DataFrame(self.__rows, columns=self.__columns).fillna(value='').to_excel(sds_description)
+        self.__workbook.save(sds_description)
         return sds_description
 
 #===============================================================================
@@ -195,34 +186,30 @@ class DirectoryManifest:
 
 #===============================================================================
 
-class FlatmapSource:
+class FlatmapSource(Manifest):
     def __init__(self, workspace, manifest_file):
-        source_dir = workspace.path
-        with open(source_dir.joinpath(manifest_file), 'r') as fd:
-            manifest = json.loads(fd.read())
+        Manifest.__init__(self, f'{workspace.path}/{manifest_file}', ignore_git=False)
 
-        if not 'description' in manifest:
+        # this lines should be modified
+        if not 'description' in self._Manifest__manifest:
             raise SourceError('Flatmap manifest must specify a description')
-        dataset_description = DatasetDescription(workspace, manifest['description'])
+        description = self._Manifest__manifest['description']
+        # until this point
+        dataset_description = DatasetDescription(workspace, description, self.uuid)
         self.__dataset_description = dataset_description.write()
 
-        species = manifest.get('models')
+        species = self.models
         metadata = {'species': species} if species is not None else {}
-
+        
         directory_manifest = DirectoryManifest(workspace)
-        directory_manifest.add_file(
-            source_dir.joinpath(manifest['description']), 'flatmap dataset description', **metadata)
-        directory_manifest.add_file(
-            source_dir.joinpath(manifest.get('anatomicalMap')), 'flatmap annatomical map', **metadata)
-        directory_manifest.add_file(
-            source_dir.joinpath(manifest.get('properties')), 'flatmap properties', **metadata)
-        for connectivity_file in manifest.get('connectivity', []):
-            directory_manifest.add_file(
-                source_dir.joinpath(connectivity_file), 'flatmap connectivity', **metadata)
-        for source in manifest.get('sources', []):
+        directory_manifest.add_file(workspace.path.joinpath(description), 'flatmap dataset description', **metadata)
+        directory_manifest.add_file(pathlib_path(self.anatomical_map), 'flatmap annatomical map', **metadata)
+        directory_manifest.add_file(pathlib_path(self.properties), 'flatmap properties', **metadata)
+        for connectivity_file in self.connectivity:
+            directory_manifest.add_file(pathlib_path(connectivity_file), 'flatmap connectivity', **metadata)
+        for source in self.sources:
             if source['href'].split(':', 1)[0] not in ['file', 'http', 'https']:
-                directory_manifest.add_file(
-                    source_dir.joinpath(source['href']), 'flatmap source', **metadata)
+                directory_manifest.add_file(pathlib_path(source['href']), 'flatmap source', **metadata)
 
         directory_manifest.write()
         self.__dataset_manifests = [ directory_manifest ]
@@ -235,6 +222,9 @@ class FlatmapSource:
     def dataset_manifests(self):
         return self.__dataset_manifests
 
+    @property
+    def manifest(self):
+        return self.__manifest
 
 #===============================================================================
 
