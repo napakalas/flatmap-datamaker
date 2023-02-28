@@ -63,7 +63,12 @@ TEMPLATE_LINK = 'https://github.com/SciCrunch/sparc-curation/blob/master/resourc
 
 #===============================================================================
 
-from datamaker.manifest import Manifest, pathlib_path
+"""Need to modify these imports for integration to map-maker"""
+from datamaker.manifest import Manifest
+# from mapmaker.maker import JsonProperties
+
+from datamaker.manifest import pathlib_path
+#from mapmaker.utils import pathlib_path
 
 #===============================================================================
 
@@ -188,13 +193,18 @@ class DirectoryManifest:
 
 class FlatmapSource(Manifest):
     def __init__(self, workspace, manifest_file):
+        """
+        : workspace: a Workspace instance
+        : manifest_file: the name of manifest file 
+        """
         Manifest.__init__(self, f'{workspace.path}/{manifest_file}', ignore_git=False)
 
         # this lines should be modified
-        if not 'description' in self._Manifest__manifest:
+        if 'description' not in self._Manifest__manifest:
             raise SourceError('Flatmap manifest must specify a description')
         description = self._Manifest__manifest['description']
         # until this point
+
         dataset_description = DatasetDescription(workspace, description, self.uuid)
         self.__dataset_description = dataset_description.write()
 
