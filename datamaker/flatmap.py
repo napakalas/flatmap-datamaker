@@ -42,10 +42,7 @@ MAPPING_URL = "https://github.com/napakalas/flatmap-datamaker/blob/main/datamake
 
 #===============================================================================
 
-"""Need to modify these imports for integration to map-maker"""
-from datamaker.manifest import Manifest
-# from mapmaker.maker import JsonProperties
-
+"""Need to modify this import for integration to map-maker"""
 from datamaker.manifest import pathlib_path
 #from mapmaker.utils import pathlib_path
 
@@ -205,39 +202,39 @@ class DirectoryManifest:
 
 #===============================================================================
 
-class FlatmapSource(Manifest):
-    def __init__(self, workspace, manifest_file, version):
+class FlatmapSource:
+    def __init__(self, workspace, manifest, version):
         """
         : workspace: a Workspace instance
-        : manifest_file: the name of manifest file 
+        : manifest: manifest object from Manifest class 
+        : version: dataset_description version
         """
-        Manifest.__init__(self, f'{workspace.path}/{manifest_file}', ignore_git=False)
-
+        
         # this lines should be modified
-        if 'description' not in self._Manifest__manifest:
+        if 'description' not in manifest._Manifest__manifest:
             raise SourceError('Flatmap manifest must specify a description')
-        description = self._Manifest__manifest['description']
+        description = manifest._Manifest__manifest['description']
         # until this point
 
-        other_params = {'uuid': self.uuid, 'version':version} # version:
+        other_params = {'uuid': manifest.uuid, 'version':version} # version:
         dataset_description = DatasetDescription(workspace, description, other_params=other_params)
         self.__dataset_description = dataset_description.write()
 
-        species = self.models
+        species = manifest.models
         metadata = {'species': species} if species is not None else {}
         
         directory_manifest = DirectoryManifest(workspace)
         directory_manifest.add_file(workspace.path.joinpath(description), 'flatmap dataset description', **metadata)
-        directory_manifest.add_file(pathlib_path(self.anatomical_map), 'flatmap annatomical map', **metadata)
-        directory_manifest.add_file(pathlib_path(self.properties), 'flatmap properties', **metadata)
-        for connectivity_file in self.connectivity:
+        directory_manifest.add_file(pathlib_path(manifest.anatomical_map), 'flatmap annatomical map', **metadata)
+        directory_manifest.add_file(pathlib_path(manifest.properties), 'flatmap properties', **metadata)
+        for connectivity_file in manifest.connectivity:
             directory_manifest.add_file(pathlib_path(connectivity_file), 'flatmap connectivity', **metadata)
-        for source in self.sources:
+        for source in manifest.sources:
             if source['href'].split(':', 1)[0] not in ['file', 'http', 'https']:
                 directory_manifest.add_file(pathlib_path(source['href']), 'flatmap source', **metadata)
 
         directory_manifest.write()
-        self.__dataset_manifests = [ directory_manifest ]
+        self.__dataset_manifests = [directory_manifest]
 
     @property
     def dataset_description(self):

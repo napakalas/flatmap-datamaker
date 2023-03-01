@@ -29,13 +29,20 @@ from datamaker.workspace import Workspace
 
 #===============================================================================
 
+"""Need to modify this import for integration to map-maker"""
+from datamaker.manifest import Manifest
+# from mapmaker.maker import Manifest
+
+#===============================================================================
+
 def mapdatamaker(workspace, commit, manifest_file, dataset, version=None):
     """
     : version: is the the version of dataset_description, i.e. 1.2.3 and 2.1.0. 
                 None value will generate the latest one
     """
     workspace = Workspace(workspace, commit)
-    source = FlatmapSource(workspace, manifest_file, version)
+    manifest = Manifest(f'{workspace.path}/{manifest_file}', ignore_git=False)
+    source = FlatmapSource(workspace, manifest, version)
     dataset_archive = ZipFile(dataset, mode='w', compression=ZIP_DEFLATED)
     for dataset_manifest in source.dataset_manifests:
         for file in dataset_manifest.files:
