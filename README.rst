@@ -45,6 +45,7 @@ Example::
              1.2.3
 
 To merge to mapmaker, need to modify the import statement
+
 `https://github.com/napakalas/flatmap-datamaker/blob/main/datamaker/flatmap.py#L45-L50`
 
-For a new published version, we just need to update data_mapping.json in the repo. The code by default will load the updated file.z
+We need to update data_mapping.json in the repo for a newly published version. The code, by default, will load the updated file.
