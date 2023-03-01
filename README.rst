@@ -16,6 +16,7 @@ Usage::
       COMMIT      SHA of workspace commit to use for dataset
       MANIFEST    name of flatmap manifest in workspace
       DATASET     full mame for resulting dataset
+      VERSION     version of dataset_description, optional -> empty will be the latest version
 
     optional arguments:
       -h, --help  show this help message and exit
@@ -28,3 +29,19 @@ Example::
              1018a30afc1a675fcc6aa504204a0652ca059dff \
              manifest.json \
              dataset.zip
+
+    $ mapdatamaker \
+             https://models.physiomeproject.org/workspace/62f \
+             1018a30afc1a675fcc6aa504204a0652ca059dff \
+             manifest.json \
+             dataset.zip \
+             2.1.0
+
+    $ mapdatamaker \
+             https://models.physiomeproject.org/workspace/62f \
+             1018a30afc1a675fcc6aa504204a0652ca059dff \
+             manifest.json \
+             dataset.zip \
+             1.2.3
+
+
