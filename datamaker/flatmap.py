@@ -43,6 +43,9 @@ MAPPING_URL = "https://github.com/napakalas/flatmap-datamaker/blob/main/datamake
 #===============================================================================
 
 """Need to modify this import for integration to map-maker"""
+from datamaker.manifest import Manifest
+# from mapmaker.maker import Manifest
+
 from datamaker.manifest import pathlib_path
 #from mapmaker.utils import pathlib_path
 
@@ -203,13 +206,14 @@ class DirectoryManifest:
 #===============================================================================
 
 class FlatmapSource:
-    def __init__(self, workspace, manifest, version):
+    def __init__(self, workspace, manifest_file, version):
         """
         : workspace: a Workspace instance
         : manifest: manifest object from Manifest class 
         : version: dataset_description version
         """
-        
+        manifest = Manifest(f'{workspace.path}/{manifest_file}', ignore_git=False)
+
         # this lines should be modified
         if 'description' not in manifest._Manifest__manifest:
             raise SourceError('Flatmap manifest must specify a description')
