@@ -29,9 +29,13 @@ from datamaker.workspace import Workspace
 
 #===============================================================================
 
-def mapdatamaker(workspace, commit, manifest_file, dataset):
+def mapdatamaker(workspace, commit, manifest_file, dataset, version=None):
+    """
+    : version: is the the version of dataset_description, i.e. 1.2.3 and 2.1.0. 
+                None value will generate the latest one
+    """
     workspace = Workspace(workspace, commit)
-    source = FlatmapSource(workspace, manifest_file)
+    source = FlatmapSource(workspace, manifest_file, version)
     dataset_archive = ZipFile(dataset, mode='w', compression=ZIP_DEFLATED)
     for dataset_manifest in source.dataset_manifests:
         for file in dataset_manifest.files:
@@ -59,10 +63,11 @@ def main():
     parser.add_argument('commit', metavar='COMMIT', help='SHA of workspace commit to use for dataset')
     parser.add_argument('manifest', metavar='MANIFEST', help='name of flatmap manifest in workspace')
     parser.add_argument('dataset', metavar='DATASET', help='full name for resulting dataset')
+    parser.add_argument('version', metavar='VERSION', help='version of dataset_description, optional -> empty will be the latest version', nargs='?', const=None)
 
     try:
         args = parser.parse_args()
-        mapdatamaker(args.workspace, args.commit, args.manifest, args.dataset)
+        mapdatamaker(args.workspace, args.commit, args.manifest, args.dataset, args.version)
     except SourceError as error:
         sys.stderr.write(f'{error}\n')
         sys.exit(1)
