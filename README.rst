@@ -7,7 +7,7 @@ Usage::
 
     $ mapdatamaker --help
 
-    usage: mapdatamaker [-h] WORKSPACE COMMIT MANIFEST DATASET
+    usage: mapdatamaker [-h] WORKSPACE COMMIT MANIFEST DATASET [VERSION]
 
     Create a SPARC Dataset of a flatmap's sources on PMR
 
@@ -16,7 +16,7 @@ Usage::
       COMMIT      SHA of workspace commit to use for dataset
       MANIFEST    name of flatmap manifest in workspace
       DATASET     full mame for resulting dataset
-      VERSION     version of dataset_description, optional -> empty will be the latest version
+      [VERSION]     version of dataset_description, optional -> empty will be the latest version
 
     optional arguments:
       -h, --help  show this help message and exit
@@ -45,4 +45,6 @@ Example::
              1.2.3
 
 To merge to mapmaker, need to modify the import statement
-`https://github.com/napakalas/flatmap-datamaker/blob/main/datamaker/flatmap.py#L45-L50 <https://github.com/napakalas/flatmap-datamaker/blob/main/datamaker/flatmap.py#L45-L50>`
+`https://github.com/napakalas/flatmap-datamaker/blob/main/datamaker/flatmap.py#L45-L50`
+
+For a new published version, we just need to update data_mapping.json in the repo. The code by default will load the updated file.z
