@@ -44,4 +44,5 @@ Example::
              dataset.zip \
              1.2.3
 
-
+To merge to mapmaker, need to modify the import statement
+`https://github.com/napakalas/flatmap-datamaker/blob/main/datamaker/flatmap.py#L45-L50 <https://github.com/napakalas/flatmap-datamaker/blob/main/datamaker/flatmap.py#L45-L50>`
