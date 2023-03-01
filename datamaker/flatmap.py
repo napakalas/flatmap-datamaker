@@ -38,28 +38,7 @@ class SourceError(Exception):
 
 #===============================================================================
 
-METADATA_VERSION = '1.2.3'
-
-#===============================================================================
-
-ADDTIONAL_LINKS = [
-    {
-        'url': 'https://github.com/dbrnz/flatmap-maker',
-        'description': 'Generate flatmaps for viewing'
-    },
-    {
-        'url': 'https://github.com/dbrnz/flatmap-server',
-        'description': 'Server for generated flatmaps'
-    },
-    {
-        'url': 'https://github.com/ABI-Software/flatmap-viewer',
-        'description': 'View generated flatmaps'
-    },
-]
-
-#===============================================================================
-
-TEMPLATE_LINK = 'https://github.com/SciCrunch/sparc-curation/blob/master/resources/DatasetTemplate/dataset_description.xlsx?raw=true'
+MAPPING_URL = "https://github.com/napakalas/flatmap-datamaker/blob/main/datamaker/data_mapping.json?raw=true"
 
 #===============================================================================
 
@@ -72,45 +51,80 @@ from datamaker.manifest import pathlib_path
 
 #===============================================================================
 
+class VersionMapping:
+    def __init__(self):
+        headers = {'Content-Type': 'application/json'}
+        results = requests.request('GET', MAPPING_URL, headers=headers)
+        self.__mappings = json.loads(results.content)
+
+    @property
+    def available_versions(self):
+        return [v['version'] for v in self.__mappings]
+
+    def get_mapping(self, other_params):
+        """
+        : other_params: is a dictionary containing other data such as uuid and version
+        """
+        version = other_params['version'] if 'version' in other_params else None
+        mapping = None
+        if version == None:
+            mapping = self.__mappings[0]
+        else:
+            for v in self.__mappings:
+                if v['version'] == version:
+                    mapping = v
+        if mapping == None:
+            raise SourceError('Dataset-Description version-{} is not available'.format(version))
+        for m in mapping['mapping']:
+            if len(m[1])> 0:
+                param = m[1][-1]
+                if param in other_params:
+                    m[2] = other_params[param]
+        return mapping
+
+#===============================================================================
+
 class DatasetDescription:
-    def __init__(self, workspace, description, uuid, is_latest=True, version=None):
-        self.__workbook = self.__load_template_workbook(is_latest=is_latest, version=version)
+    def __init__(self, workspace, description_file, other_params:dict):
+        """
+        : other_params: is a dictionary containing other data such as uuid and version
+        """
+        self.__mapping = VersionMapping().get_mapping(other_params)
+        self.__workbook = self.__load_template_workbook(self.__mapping['template_url'])
         
         self.__source_dir = workspace.path
-        with open(self.__source_dir.joinpath(description)) as fd:
+        with open(self.__source_dir.joinpath(description_file)) as fd:
             description = json.loads(fd.read())
+
+        for m in self.__mapping['mapping']:
+             self.__write_cell(m, description)
         
-        self.__write_cell('type', 'simulation')
-        self.__write_cell('title', description['title'])
-        self.__write_cell('keywords', description['keywords'])
-        self.__write_cell('contributor name', [c['name'] if 'name' in c else '' for c in description['contributors']])
-        self.__write_cell('contributor orcid', [c['orcid'] if 'orcid' in c else '' for c in description['contributors']])
-        self.__write_cell('contributor affiliation', [c['affiliation'] if 'affiliation' in c else '' for c in description['contributors']])
-        self.__write_cell('contributor role', [c['role'] if 'role' in c else '' for c in description['contributors']])
-        if uuid != None:
-            self.__write_cell('identifier', str(uuid))
-        self.__write_cell('identifier type', 'uuid')
-        self.__write_cell('funding', description['funding'])
-        self.__write_cell('identifier description', ['', ''])
-        self.__write_cell('relation type', ['', ''])
-        
-    def __load_template_workbook(self, is_latest=True, version=None):
+    def __load_template_workbook(self, template_link):
         """
-        : is_latest: the default is True, if None, should specify the version
-        : version: the default is None for the latest version
+        : template_link: link to dataset_description.xlsx
         """
         headers = {'Content-Type': 'application/xlsx'}
-        template = requests.request('GET', TEMPLATE_LINK, headers=headers)
+        template = requests.request('GET', template_link, headers=headers)
         workbook = openpyxl.load_workbook(BytesIO(template.content))
         return workbook
         
-    def __write_cell(self, key, values):
+    def __write_cell(self, map, description):
         worksheet = self.__workbook.worksheets[0]
         data_pos = 3
-        if not isinstance(values, list):
-            values = [values]
+        key, dsc, default = map
+        if len(dsc) == 0:
+            values = default if isinstance(default, list) else [default]
+        elif len(dsc) == 1:
+            if dsc[-1] in description:
+                values = description[dsc[-1]] if isinstance(description[dsc[-1]], list) else [description[dsc[-1]]]
+            else:
+                values = default if isinstance(default, list) else [default]
+        else:
+            values = [c[dsc[1]] if dsc[1] in c else '' for c in description[dsc[0]]]
         for row in worksheet.rows:
-            if row[0].value.lower().strip() == key:
+            if row[0].value == None:
+                break
+            if row[0].value.lower().strip() == map[0]:
                 for pos in range(len(values)):
                     row[pos+data_pos].value = str(values[pos])
 
@@ -192,7 +206,7 @@ class DirectoryManifest:
 #===============================================================================
 
 class FlatmapSource(Manifest):
-    def __init__(self, workspace, manifest_file):
+    def __init__(self, workspace, manifest_file, version):
         """
         : workspace: a Workspace instance
         : manifest_file: the name of manifest file 
@@ -205,7 +219,8 @@ class FlatmapSource(Manifest):
         description = self._Manifest__manifest['description']
         # until this point
 
-        dataset_description = DatasetDescription(workspace, description, self.uuid)
+        other_params = {'uuid': self.uuid, 'version':version} # version:
+        dataset_description = DatasetDescription(workspace, description, other_params=other_params)
         self.__dataset_description = dataset_description.write()
 
         species = self.models
