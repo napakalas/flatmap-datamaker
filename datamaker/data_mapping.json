@@ -12,10 +12,10 @@
             ["identifier", ["uuid"], ""],
             ["identifier type", [], "uuid"],
             ["funding", ["funding"], ""],
-            ["identifier description", [], ""],
-            ["relation type", [], ""],
+            ["identifier description", [], ["", "", ""]],
+            ["relation type", [], ["", "", ""]],
             ["number of subjects", [], "0"],
-            ["number of rows", [], "0"]
+            ["number of samples", [], "0"]
         ],
         "template_url": "https://github.com/SciCrunch/sparc-curation/blob/7163299651648c6286231a0ca071f48c1d4d3bc5/resources/DatasetTemplate/dataset_description.xlsx?raw=true"
     },
@@ -28,15 +28,15 @@
             ["description", ["description"], ""],
             ["keywords", ["keywords"], ""],
             ["contributors", ["contributors", "name"], ""],
-            ["contributors orchid id", ["contributors", "orcid"], ""],
-            ["contributors affiliation", ["contributors", "affiliation"], ""],
-            ["contributors role", ["contributors", "role"], ""],
+            ["contributor orcid id", ["contributors", "orcid"], ""],
+            ["contributor affiliation", ["contributors", "affiliation"], ""],
+            ["contributor role", ["contributors", "role"], ""],
             ["is contact person", ["contributors", "contact"], ""],
             ["funding", ["funding"], ""],
             ["additional links", [], ["https://github.com/dbrnz/flatmap-maker", "https://github.com/dbrnz/flatmap-server", "https://github.com/ABI-Software/flatmap-viewer"]],
             ["link description", [], ["Generate flatmaps for viewing", "Server for generated flatmaps", "View generated flatmaps"]],
             ["number of subjects", [], "0"],
-            ["number of rows", [], "0"]
+            ["number of samples", [], "0"]
         ],
         "template_url": "https://github.com/SciCrunch/sparc-curation/blob/ed38ffc61aebd28176827f04448cc68e56ac19f5/resources/DatasetTemplate/dataset_description.xlsx?raw=true"
     }
