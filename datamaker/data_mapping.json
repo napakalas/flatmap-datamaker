@@ -17,7 +17,8 @@
             ["number of subjects", [], "0"],
             ["number of samples", [], "0"]
         ],
-        "template_url": "https://github.com/SciCrunch/sparc-curation/blob/7163299651648c6286231a0ca071f48c1d4d3bc5/resources/DatasetTemplate/dataset_description.xlsx?raw=true"
+        "template_url": "https://github.com/SciCrunch/sparc-curation/blob/7163299651648c6286231a0ca071f48c1d4d3bc5/resources/DatasetTemplate/dataset_description.xlsx?raw=true",
+        "_comment": "mapping is a list of tuples containing ['field in template', 'fields in description.json', 'default value']"
     },
     {
         "version": "1.2.3",

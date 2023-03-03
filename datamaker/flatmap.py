@@ -112,6 +112,7 @@ class DatasetDescription:
         worksheet = self.__workbook.worksheets[0]
         data_pos = 3
         key, dsc, default = map
+
         if len(dsc) == 0:
             values = default if isinstance(default, list) else [default]
         elif len(dsc) == 1:
@@ -124,7 +125,7 @@ class DatasetDescription:
         for row in worksheet.rows:
             if row[0].value == None:
                 break
-            if row[0].value.lower().strip() == map[0]:
+            if row[0].value.lower().strip() == key:
                 for pos in range(len(values)):
                     row[pos+data_pos].value = str(values[pos])
 
@@ -215,7 +216,7 @@ class FlatmapSource:
         manifest = Manifest(f'{workspace.path}/{manifest_file}', ignore_git=False)
 
         # this lines should be modified
-        if 'description' not in manifest._Manifest__manifest:
+        if 'description' not in manifest.description:
             raise SourceError('Flatmap manifest must specify a description')
         description = manifest._Manifest__manifest['description']
         # until this point

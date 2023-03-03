@@ -48,4 +48,4 @@ To merge to mapmaker, need to modify the import statement
 
 `https://github.com/napakalas/flatmap-datamaker/blob/main/datamaker/flatmap.py#L45-L50`
 
-We need to update data_mapping.json in the repo for a newly published version. The code, by default, will load the updated file.
+We need to update `https://github.com/napakalas/flatmap-datamaker/blob/main/datamaker/data_mapping.json` in for a newly published version. The code, by default, will load the updated file.
