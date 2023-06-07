@@ -24,8 +24,8 @@
             ["identifier description", ["identifier_description"], "Link to map creation software"],
             ["relation type", ["relation_type"], "HasSoftware"],
 
-            ["identifier", ["identifier"], ""],
-            ["identifier type", [], "URL"],
+            ["identifier", ["id"], ""],
+            ["identifier type", ["id_type"], "URL"],
             
             ["number of subjects", [], "0"],
             ["number of samples", [], "0"]
