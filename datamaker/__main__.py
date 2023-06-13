@@ -19,39 +19,11 @@
 #===============================================================================
 
 import argparse
-import shutil
-from zipfile import ZipFile, ZipInfo, ZIP_DEFLATED
 
 #===============================================================================
 
-from datamaker.flatmap import FlatmapSource, SourceError
-from datamaker.workspace import Workspace
-
-#===============================================================================
-
-def mapdatamaker(workspace_url, commit, manifest_file, dataset, version=None):
-    """
-    : version: is the the version of dataset_description, i.e. 1.2.3 and 2.1.0. 
-                None value will generate the latest one
-    """
-    workspace = Workspace(workspace_url, commit)
-    source = FlatmapSource(workspace, manifest_file, version)
-    dataset_archive = ZipFile(dataset, mode='w', compression=ZIP_DEFLATED)
-    for dataset_manifest in source.dataset_manifests:
-        for file in dataset_manifest.files:
-            zinfo = ZipInfo.from_file(str(file.fullpath), arcname=f'files/primary/{file.filename}')
-            zinfo.compress_type = ZIP_DEFLATED
-            timestamp = file.timestamp
-            zinfo.date_time = (timestamp.year, timestamp.month, timestamp.day,
-                               timestamp.hour, timestamp.minute, timestamp.second)
-            with open(file.fullpath, "rb") as src, dataset_archive.open(zinfo, 'w') as dest:
-                shutil.copyfileobj(src, dest, 1024*8)
-        manifest = dataset_manifest.manifest
-        dataset_archive.write(str(manifest), arcname=f'files/primary/{manifest.name}')
-    dataset_description = source.dataset_description
-    dataset_archive.write(str(dataset_description), arcname=f'files/{dataset_description.name}')
-    dataset_archive.close()
-    workspace.close()
+from datamaker.src.flatmap import SourceError
+from datamaker.src.dataset import Dataset
 
 #===============================================================================
 
@@ -59,15 +31,48 @@ def main():
     import sys
 
     parser = argparse.ArgumentParser(description="Create a SPARC Dataset of a flatmap's sources on PMR")
-    parser.add_argument('workspace', metavar='WORKSPACE', help='URL of a PMR workspace containing a flatmap manifest')
-    parser.add_argument('commit', metavar='COMMIT', help='SHA of workspace commit to use for dataset')
-    parser.add_argument('manifest', metavar='MANIFEST', help='name of flatmap manifest in workspace')
-    parser.add_argument('dataset', metavar='DATASET', help='full name for resulting dataset')
-    parser.add_argument('version', metavar='VERSION', help='version of dataset_description, optional -> empty will be the latest version', nargs='?', const=None)
+
+    parser.add_argument('--workspace', metavar='WORKSPACE', required=True,
+                        help='URL of a PMR workspace containing a flatmap manifest')
+    parser.add_argument('--commit', metavar='COMMIT', 
+                        help='SHA of workspace commit to use for dataset')
+    parser.add_argument('--manifest', metavar='MANIFEST', required=True,
+                        help='name of flatmap manifest in workspace')
+    parser.add_argument('--derivative', metavar='DERIVATIVE', 
+                        help='URL of a PMR workspace containing a generated flatmap')
+    parser.add_argument('--description', metavar='description', 
+                        help='name of flatmap description in workspace')
+    parser.add_argument('--dataset', metavar='DATASET', required=True,
+                        help='full name and path for resulting dataset')
+    parser.add_argument('--version', metavar='VERSION', 
+                        help='version of dataset_description, optional -> empty will be the latest version', nargs='?', const=None)
+    parser.add_argument('--ignore-git', dest='ignore_git', action='store_true', 
+                        help="Don't check that sources are committed into git")
+    parser.add_argument('--id', metavar='ID',
+                        help="an ID used to identify the dataset")
+    parser.add_argument('--id-type', dest='id_type', 
+                        help="the ID type, e.g. URL and URI")
+    parser.add_argument('--log-file', dest='log_file', 
+                        help="a log file storing map generation process")    
+    
 
     try:
-        args = parser.parse_args()
-        mapdatamaker(args.workspace, args.commit, args.manifest, args.dataset, args.version)
+        opts = vars(parser.parse_args())
+        dataset = Dataset(workspace_path = opts['workspace'], 
+                          manifest_file = opts['manifest'], 
+                          output = opts['dataset'], 
+                          commit = opts['commit'], 
+                          derivative = opts['derivative'], 
+                          description = opts['description'],
+                          version = opts['version'], 
+                          ignone_git = opts['ignore_git'], 
+                          id = opts['id'], 
+                          id_type = opts['id_type'],
+                          log_file = opts['log_file'])
+        dataset.save_archive()
+        dataset.close()
+        
+        # mapdatamaker(args.workspace, args.commit, args.manifest, args.dataset, args.version, args.ig)
     except SourceError as error:
         sys.stderr.write(f'{error}\n')
         sys.exit(1)
