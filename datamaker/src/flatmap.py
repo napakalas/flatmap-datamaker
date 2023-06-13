@@ -38,15 +38,15 @@ class SourceError(Exception):
 
 #===============================================================================
 
-MAPPING_URL = "https://github.com/napakalas/flatmap-datamaker/blob/main/datamaker/data_mapping.json?raw=true"
+MAPPING_URL = "https://github.com/napakalas/flatmap-datamaker/blob/main/datamaker/resources/data_mapping.json?raw=true"
 
 #===============================================================================
 
 """Need to modify this import for integration to map-maker"""
-from datamaker.manifest import Manifest
+from datamaker.src.manifest import Manifest
 # from mapmaker.maker import Manifest
 
-from datamaker.manifest import pathlib_path
+from datamaker.src.manifest import pathlib_path
 #from mapmaker.utils import pathlib_path
 
 #===============================================================================
@@ -65,7 +65,7 @@ class VersionMapping:
         """
         : other_params: is a dictionary containing other data such as uuid and version
         """
-        version = other_params['version'] if 'version' in other_params else None
+        version = other_params.get('version', None)
         mapping = None
         if version == None:
             mapping = self.__mappings[0]
@@ -85,17 +85,21 @@ class VersionMapping:
 #===============================================================================
 
 class DatasetDescription:
-    def __init__(self, workspace, description_file, other_params:dict):
+    def __init__(self, workspace, description_file, other_params):
         """
-        : other_params: is a dictionary containing other data such as uuid and version
+        : other_params: is a dictionary containing other data including uuid and version
         """
         self.__mapping = VersionMapping().get_mapping(other_params)
         self.__workbook = self.__load_template_workbook(self.__mapping['template_url'])
         
-        self.__source_dir = workspace.path
-        with open(self.__source_dir.joinpath(description_file)) as fd:
-            description = json.loads(fd.read())
+        self.__source_dir = workspace.generated_path
 
+        try:
+            with open(workspace.path.joinpath(description_file), 'r') as fd:
+                description = json.loads(fd.read())
+        except FileNotFoundError:
+            raise FileNotFoundError('Cannot open path: {}'.format(description_file)) from None
+        
         for m in self.__mapping['mapping']:
              self.__write_cell(m, description)
         
@@ -110,18 +114,24 @@ class DatasetDescription:
         
     def __write_cell(self, map, description):
         worksheet = self.__workbook.worksheets[0]
-        data_pos = 3
+        data_pos = self.__mapping.get('data_pos', 3)
         key, dsc, default = map
+        values = default if isinstance(default, list) else [default]
 
-        if len(dsc) == 0:
-            values = default if isinstance(default, list) else [default]
-        elif len(dsc) == 1:
-            if dsc[-1] in description:
+        if len(dsc) == 1:
+            if dsc[0] in description:
                 values = description[dsc[-1]] if isinstance(description[dsc[-1]], list) else [description[dsc[-1]]]
-            else:
-                values = default if isinstance(default, list) else [default]
-        else:
-            values = [c[dsc[1]] if dsc[1] in c else '' for c in description[dsc[0]]]
+        elif len(dsc) > 1:
+            tmp_values = description
+            for d in dsc:
+                if isinstance(tmp_values, dict):
+                    tmp_values = tmp_values.get(d, {})
+                elif isinstance(tmp_values, list):
+                    tmp_values = [val.get(d, '') for val in tmp_values]
+            
+            if len(tmp_values) > 0:
+                values = tmp_values if isinstance(tmp_values, list) else [tmp_values]
+
         for row in worksheet.rows:
             if row[0].value == None:
                 break
@@ -157,6 +167,7 @@ class DirectoryManifest:
     def __init__(self, workspace, metadata_columns=None):
         self.__workspace = workspace
         self.__path = self.__workspace.path
+        self.__generated_path = self.__workspace.generated_path
         self.__metadata_columns = metadata_columns if metadata_columns is not None else []
         self.__files = []
         self.__file_records = []
@@ -198,7 +209,7 @@ class DirectoryManifest:
         self.__file_records.append(record)
 
     def write(self):
-        self.__manifest = (self.__path / 'manifest.xlsx').resolve()
+        self.__manifest = (self.__generated_path / 'manifest.xlsx').resolve()
         pandas.DataFrame(
             self.__file_records,
             columns = self.COLUMNS + tuple(self.__metadata_columns)
@@ -207,36 +218,54 @@ class DirectoryManifest:
 #===============================================================================
 
 class FlatmapSource:
-    def __init__(self, workspace, manifest_file, version):
+    def __init__(self, workspace, manifest, description, version, id, id_type):
         """
         : workspace: a Workspace instance
-        : manifest: manifest object from Manifest class 
+        : manifest: manifest object of Manifest class 
         : version: dataset_description version
         """
-        manifest = Manifest(f'{workspace.path}/{manifest_file}', ignore_git=False)
+        
+        # checking description file profided by Flatmap manifest
+        if len(manifest.description) > 0 :
+            description = manifest.description
+        if description == None:
+            raise SourceError('Flatmap manifest must specify a description file')
 
-        # this lines should be modified
-        if 'description' not in manifest.description:
-            raise SourceError('Flatmap manifest must specify a description')
-        description = manifest._Manifest__manifest['description']
-        # until this point
-
-        other_params = {'uuid': manifest.uuid, 'version':version} # version:
-        dataset_description = DatasetDescription(workspace, description, other_params=other_params)
+        # creating dataset_description.xlsx
+        other_params = {'version':version, 'id':id, 'id_type':id_type} # version:
+        if (id_type == None or id_type.upper() == 'URL') and id == None:
+            other_params['id_type'] = 'URL'
+            other_params['id'] = workspace.workspace_url()
+        elif id_type.upper() == 'UUID' and id == None:
+            other_params['id_type'] = 'UUID'
+            other_params['id'] = manifest.uuid        
+        dataset_description = DatasetDescription(workspace, description, other_params)
         self.__dataset_description = dataset_description.write()
 
+        # creating dataset manifest.xlsx
         species = manifest.models
         metadata = {'species': species} if species is not None else {}
         
+        # adding files to be store in primary directory
         directory_manifest = DirectoryManifest(workspace)
-        directory_manifest.add_file(workspace.path.joinpath(description), 'flatmap dataset description', **metadata)
-        directory_manifest.add_file(pathlib_path(manifest.anatomical_map), 'flatmap annatomical map', **metadata)
-        directory_manifest.add_file(pathlib_path(manifest.properties), 'flatmap properties', **metadata)
+        # directory_manifest.add_file(workspace.path.joinpath(manifest.description), 'flatmap dataset description', **metadata)
+        if manifest.anatomical_map != None:
+            directory_manifest.add_file(pathlib_path(manifest.anatomical_map), 'flatmap annatomical map', **metadata)
+        if manifest.properties != None:
+            directory_manifest.add_file(pathlib_path(manifest.properties), 'flatmap properties', **metadata)
+        if manifest.connectivity_terms != None:
+            directory_manifest.add_file(pathlib_path(manifest.connectivity_terms), 'flatmap connectivity terms', **metadata)
         for connectivity_file in manifest.connectivity:
             directory_manifest.add_file(pathlib_path(connectivity_file), 'flatmap connectivity', **metadata)
         for source in manifest.sources:
-            if source['href'].split(':', 1)[0] not in ['file', 'http', 'https']:
+            if source['href'].split(':', 1)[0] in ['file']:
                 directory_manifest.add_file(pathlib_path(source['href']), 'flatmap source', **metadata)
+        # adding manifest.json to directory_manifest
+        directory_manifest.add_file(pathlib_path(manifest.url), 'manifest to bult map', **metadata)
+
+        # for source in manifest.sources:
+        #     if source['href'].split(':', 1)[0] not in ['file', 'http', 'https']:
+        #         directory_manifest.add_file(pathlib_path(source['href']), 'flatmap source', **metadata)
 
         directory_manifest.write()
         self.__dataset_manifests = [directory_manifest]
@@ -250,8 +279,12 @@ class FlatmapSource:
         return self.__dataset_manifests
 
     @property
-    def manifest(self):
-        return self.__manifest
+    def dataset_source(self):
+        for dataset_manifest in self.__dataset_manifests:
+            for file in dataset_manifest.files:
+                if file.filename.endswith('.pptx') or file.filename.endswith('.svg'):
+                    return file.fullpath
+        return None
 
 #===============================================================================
 
